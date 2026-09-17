@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#111827" />
+  <title>iPhone DeviceOrientation Test</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1020;
+      --panel: #151b2f;
+      --panel2: #1d2540;
+      --text: #f5f7ff;
+      --muted: #aeb8d4;
+      --accent: #7dd3fc;
+      --good: #86efac;
+      --warn: #fde68a;
+      --border: #34405f;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding:
+        max(18px, env(safe-area-inset-top))
+        16px
+        max(24px, env(safe-area-inset-bottom));
+    }
+
+    .wrap {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 1.55rem;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin: 0 0 18px;
+      line-height: 1.45;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    button {
+      min-height: 52px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel2);
+      color: var(--text);
+      font-size: 1rem;
+      font-weight: 650;
+      padding: 10px 12px;
+      touch-action: manipulation;
+    }
+
+    button.primary {
+      background: #075985;
+      border-color: #0ea5e9;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+    }
+
+    .status {
+      margin: 0 0 14px;
+      padding: 11px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--muted);
+      background: var(--panel);
+      font-size: 0.95rem;
+    }
+
+    .hero {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 14px;
+    }
+
+    .hero .label {
+      color: var(--muted);
+      font-size: 0.93rem;
+      margin-bottom: 6px;
+    }
+
+    .big {
+      font-variant-numeric: tabular-nums;
+      font-size: clamp(3rem, 16vw, 6rem);
+      line-height: 0.95;
+      font-weight: 750;
+      letter-spacing: -0.04em;
+      color: var(--accent);
+    }
+
+    .unit {
+      font-size: 0.42em;
+      letter-spacing: 0;
+      color: var(--muted);
+      margin-left: 4px;
+    }
+
+    .hero-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .mini {
+      background: var(--panel2);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .mini .k {
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-bottom: 5px;
+    }
+
+    .mini .v {
+      font-size: 1.3rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .card .axis {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 4px;
+    }
+
+    .card .value {
+      font-size: 1.65rem;
+      font-weight: 720;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .card .avg {
+      color: var(--good);
+      margin-top: 6px;
+      font-size: 0.9rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .info {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 0.92rem;
+    }
+
+    .info strong { color: var(--text); }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .row:last-child { border-bottom: 0; }
+
+    @media (max-width: 560px) {
+      .grid { grid-template-columns: 1fr; }
+      .hero-row { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>DeviceOrientation Test</h1>
+    <p class="subtitle">
+      Direct browser orientation test. <strong>Yaw is the Z-axis alpha (α)</strong>.
+      No gyroscope integration is used.
+    </p>
+
+    <div class="controls">
+      <button id="startBtn" class="primary">Start Sensors</button>
+      <button id="zeroBtn" disabled>Set Yaw Zero</button>
+      <button id="resetBtn" disabled>Reset Zero</button>
+      <button id="clearBtn">Clear Averaging</button>
+    </div>
+
+    <div id="status" class="status">Tap “Start Sensors”. On iPhone, allow motion/orientation access if prompted.</div>
+
+    <section class="hero">
+      <div class="label">Relative yaw from zero — Z-axis α</div>
+      <div class="big"><span id="yawRel">—</span><span class="unit">°</span></div>
+
+      <div class="hero-row">
+        <div class="mini">
+          <div class="k">Smoothed α</div>
+          <div class="v"><span id="alphaAvg">—</span>°</div>
+        </div>
+        <div class="mini">
+          <div class="k">Zero reference</div>
+          <div class="v"><span id="zeroValue">not set</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <div class="axis">Z-axis yaw α</div>
+        <div class="value"><span id="alphaRaw">—</span>°</div>
+        <div class="avg">avg: <span id="alphaAvg2">—</span>°</div>
+      </div>
+
+      <div class="card">
+        <div class="axis">X-axis β</div>
+        <div class="value"><span id="betaRaw">—</span>°</div>
+        <div class="avg">avg: <span id="betaAvg">—</span>°</div>
+      </div>
+
+      <div class="card">
+        <div class="axis">Y-axis γ</div>
+        <div class="value"><span id="gammaRaw">—</span>°</div>
+        <div class="avg">avg: <span id="gammaAvg">—</span>°</div>
+      </div>
+    </section>
+
+    <section class="info">
+      <div class="row"><span>Samples received</span><strong id="samples">0</strong></div>
+      <div class="row"><span>Averaging window</span><strong id="windowSize">30 samples</strong></div>
+      <div class="row"><span>α stability (circular SD)</span><strong id="alphaSd">—</strong></div>
+      <div class="row"><span>Event absolute</span><strong id="absoluteFlag">—</strong></div>
+      <div class="row"><span>Screen orientation</span><strong id="screenAngle">—</strong></div>
+      <p style="margin:12px 0 0">
+        The page uses <strong>DeviceOrientationEvent.alpha</strong> directly for yaw.
+        Alpha is circular, so averaging and zero subtraction correctly handle the
+        359° → 0° boundary.
+      </p>
+    </section>
+  </main>
+
+<script>
+(() => {
+  const AVG_N = 30;
+
+  const el = id => document.getElementById(id);
+
+  const startBtn = el("startBtn");
+  const zeroBtn = el("zeroBtn");
+  const resetBtn = el("resetBtn");
+  const clearBtn = el("clearBtn");
+  const status = el("status");
+
+  let running = false;
+  let sampleCount = 0;
+  let zeroAlpha = null;
+
+  const alphaBuf = [];
+  const betaBuf = [];
+  const gammaBuf = [];
+
+  let lastAlphaAvg = null;
+
+  function push(buf, value) {
+    if (!Number.isFinite(value)) return;
+    buf.push(value);
+    if (buf.length > AVG_N) buf.shift();
+  }
+
+  function mean(arr) {
+    if (!arr.length) return null;
+    return arr.reduce((a,b) => a + b, 0) / arr.length;
+  }
+
+  // Circular mean for angles expressed in degrees.
+  function circularMeanDeg(arr) {
+    if (!arr.length) return null;
+    let s = 0, c = 0;
+    for (const deg of arr) {
+      const r = deg * Math.PI / 180;
+      s += Math.sin(r);
+      c += Math.cos(r);
+    }
+    let deg = Math.atan2(s / arr.length, c / arr.length) * 180 / Math.PI;
+    if (deg < 0) deg += 360;
+    return deg;
+  }
+
+  // Circular standard deviation, in degrees.
+  function circularSdDeg(arr) {
+    if (arr.length < 2) return null;
+    let s = 0, c = 0;
+    for (const deg of arr) {
+      const r = deg * Math.PI / 180;
+      s += Math.sin(r);
+      c += Math.cos(r);
+    }
+    const R = Math.sqrt(s*s + c*c) / arr.length;
+    if (R <= 0) return 180;
+    return Math.sqrt(-2 * Math.log(Math.min(1, R))) * 180 / Math.PI;
+  }
+
+  // Signed shortest angular difference: result in [-180, +180).
+  function angleDiff(current, reference) {
+    return ((current - reference + 540) % 360) - 180;
+  }
+
+  function fmt(v, digits = 2) {
+    return Number.isFinite(v) ? v.toFixed(digits) : "—";
+  }
+
+  function screenOrientationAngle() {
+    if (screen.orientation && Number.isFinite(screen.orientation.angle)) {
+      return screen.orientation.angle;
+    }
+    if (Number.isFinite(window.orientation)) return window.orientation;
+    return null;
+  }
+
+  function updateDisplay(event) {
+    const a = Number(event.alpha);
+    const b = Number(event.beta);
+    const g = Number(event.gamma);
+
+    if (!Number.isFinite(a) && !Number.isFinite(b) && !Number.isFinite(g)) {
+      return;
+    }
+
+    sampleCount++;
+    push(alphaBuf, a);
+    push(betaBuf, b);
+    push(gammaBuf, g);
+
+    const aAvg = circularMeanDeg(alphaBuf);
+    const bAvg = mean(betaBuf);
+    const gAvg = mean(gammaBuf);
+    const aSd = circularSdDeg(alphaBuf);
+
+    lastAlphaAvg = aAvg;
+
+    el("alphaRaw").textContent = fmt(a);
+    el("betaRaw").textContent = fmt(b);
+    el("gammaRaw").textContent = fmt(g);
+
+    el("alphaAvg").textContent = fmt(aAvg);
+    el("alphaAvg2").textContent = fmt(aAvg);
+    el("betaAvg").textContent = fmt(bAvg);
+    el("gammaAvg").textContent = fmt(gAvg);
+
+    el("samples").textContent = sampleCount;
+    el("alphaSd").textContent = Number.isFinite(aSd) ? aSd.toFixed(3) + "°" : "—";
+    el("absoluteFlag").textContent = String(event.absolute);
+
+    const soa = screenOrientationAngle();
+    el("screenAngle").textContent = Number.isFinite(soa) ? soa + "°" : "unknown";
+
+    if (zeroAlpha !== null && Number.isFinite(aAvg)) {
+      const rel = angleDiff(aAvg, zeroAlpha);
+      el("yawRel").textContent = (rel >= 0 ? "+" : "") + rel.toFixed(2);
+    } else {
+      el("yawRel").textContent = "—";
+    }
+
+    zeroBtn.disabled = !Number.isFinite(aAvg);
+  }
+
+  async function startSensors() {
+    try {
+      // iOS 13+ requires permission from a user gesture.
+      if (
+        typeof DeviceOrientationEvent !== "undefined" &&
+        typeof DeviceOrientationEvent.requestPermission === "function"
+      ) {
+        const result = await DeviceOrientationEvent.requestPermission();
+        if (result !== "granted") {
+          status.textContent = "Orientation permission was not granted.";
+          return;
+        }
+      }
+
+      if (typeof DeviceOrientationEvent === "undefined") {
+        status.textContent = "DeviceOrientationEvent is not supported in this browser.";
+        return;
+      }
+
+      if (!running) {
+        window.addEventListener("deviceorientation", updateDisplay, true);
+        running = true;
+      }
+
+      startBtn.disabled = true;
+      resetBtn.disabled = false;
+      status.textContent = "Sensor running. Hold the phone still, then tap “Set Yaw Zero”.";
+    } catch (err) {
+      status.textContent = "Could not start sensor: " + (err?.message || String(err));
+    }
+  }
+
+  function setYawZero() {
+    if (!Number.isFinite(lastAlphaAvg)) return;
+    zeroAlpha = lastAlphaAvg;
+    el("zeroValue").textContent = zeroAlpha.toFixed(2) + "°";
+    el("yawRel").textContent = "+0.00";
+    status.textContent = "Yaw zero set from the smoothed Z-axis α value.";
+  }
+
+  function resetZero() {
+    zeroAlpha = null;
+    el("zeroValue").textContent = "not set";
+    el("yawRel").textContent = "—";
+    status.textContent = "Yaw zero cleared.";
+  }
+
+  function clearAveraging() {
+    alphaBuf.length = 0;
+    betaBuf.length = 0;
+    gammaBuf.length = 0;
+    lastAlphaAvg = null;
+    el("alphaAvg").textContent = "—";
+    el("alphaAvg2").textContent = "—";
+    el("betaAvg").textContent = "—";
+    el("gammaAvg").textContent = "—";
+    el("alphaSd").textContent = "—";
+    status.textContent = running
+      ? "Averaging buffer cleared. New samples are being collected."
+      : "Averaging buffer cleared.";
+  }
+
+  startBtn.addEventListener("click", startSensors);
+  zeroBtn.addEventListener("click", setYawZero);
+  resetBtn.addEventListener("click", resetZero);
+  clearBtn.addEventListener("click", clearAveraging);
+})();
+</script>
+</body>
+</html>
