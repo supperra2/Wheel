@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#111827" />
+  <title>iPhone Wheel IMU Tester</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#111827;
+      --panel2:#182033;
+      --text:#f3f4f6;
+      --muted:#9ca3af;
+      --accent:#60a5fa;
+      --good:#34d399;
+      --warn:#fbbf24;
+      --bad:#f87171;
+      --line:#2a3448;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      min-height:100vh;
+    }
+    .wrap{
+      max-width:780px;
+      margin:0 auto;
+      padding:18px 14px 40px;
+    }
+    h1{
+      font-size:28px;
+      margin:6px 0 4px;
+    }
+    .sub{
+      color:var(--muted);
+      font-size:14px;
+      margin-bottom:16px;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:12px;
+    }
+    @media (max-width:560px){
+      .grid{grid-template-columns:1fr}
+    }
+    .card{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:16px;
+      box-shadow:0 6px 20px rgba(0,0,0,.2);
+    }
+    .label{
+      color:var(--muted);
+      font-size:13px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+    }
+    .big{
+      font-variant-numeric:tabular-nums;
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+      font-size:44px;
+      font-weight:700;
+      margin-top:8px;
+      line-height:1.05;
+    }
+    .med{
+      font-variant-numeric:tabular-nums;
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+      font-size:24px;
+      font-weight:650;
+      margin-top:8px;
+    }
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin:14px 0;
+    }
+    button{
+      appearance:none;
+      border:none;
+      border-radius:12px;
+      padding:14px 16px;
+      font-weight:700;
+      font-size:16px;
+      color:#08111f;
+      background:var(--accent);
+      min-height:48px;
+      flex:1;
+      min-width:130px;
+    }
+    button.secondary{
+      background:#cbd5e1;
+    }
+    button.danger{
+      background:#fca5a5;
+    }
+    button:disabled{
+      opacity:.45;
+    }
+    .status{
+      font-weight:700;
+      font-size:17px;
+    }
+    .good{color:var(--good)}
+    .warn{color:var(--warn)}
+    .bad{color:var(--bad)}
+    .small{
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.45;
+    }
+    .kv{
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:8px 12px;
+      font-size:15px;
+      margin-top:10px;
+    }
+    .kv div:nth-child(2n){
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+      font-variant-numeric:tabular-nums;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:10px;
+      font-size:14px;
+    }
+    th,td{
+      padding:9px 7px;
+      border-bottom:1px solid var(--line);
+      text-align:right;
+      font-variant-numeric:tabular-nums;
+    }
+    th:first-child,td:first-child{text-align:left}
+    .pill{
+      display:inline-block;
+      padding:6px 9px;
+      border-radius:999px;
+      background:var(--panel2);
+      border:1px solid var(--line);
+      margin-right:6px;
+      margin-top:6px;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .note{
+      background:#0f172a;
+      border-left:4px solid var(--accent);
+      padding:12px 14px;
+      border-radius:10px;
+      color:#dbeafe;
+      font-size:14px;
+      line-height:1.45;
+      margin:14px 0;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>iPhone Wheel IMU Tester</h1>
+  <div class="sub">Return-to-zero test for evaluating iPhone motion-sensor drift before building a wheel-alignment workflow.</div>
+
+  <div class="note">
+    Open this page in Safari over <b>HTTPS</b>. Tap <b>Enable Motion Sensors</b>, place the phone in a rigid repeatable fixture, wait for STATIONARY, tap ZERO, move the phone for 10–30 s, then return it to the exact same fixture and tap SAVE TRIAL.
+  </div>
+
+  <div class="row">
+    <button id="enableBtn">Enable Motion Sensors</button>
+    <button id="zeroBtn" class="secondary" disabled>ZERO</button>
+    <button id="saveBtn" class="secondary" disabled>SAVE TRIAL</button>
+    <button id="clearBtn" class="danger">Clear Trials</button>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="label">Relative yaw</div>
+      <div id="yaw" class="big">+0.000°</div>
+      <div class="small">Integrated from browser gyroscope. This is the main drift-test value.</div>
+    </div>
+
+    <div class="card">
+      <div class="label">Camber estimate</div>
+      <div id="camber" class="big">+0.000°</div>
+      <div class="small">Based on gravity vector. Sign/orientation will be refined for the final wheel fixture.</div>
+    </div>
+
+    <div class="card">
+      <div class="label">Motion state</div>
+      <div id="stationary" class="med warn">NOT ENABLED</div>
+      <div class="kv">
+        <div>Gyro magnitude</div><div id="gyroMag">0.000 °/s</div>
+        <div>Accel deviation</div><div id="accelDev">0.0000 g</div>
+        <div>Sample rate</div><div id="sampleRate">0.0 Hz</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">Gyroscope</div>
+      <div class="kv">
+        <div>Alpha</div><div id="ga">0.000 °/s</div>
+        <div>Beta</div><div id="gb">0.000 °/s</div>
+        <div>Gamma</div><div id="gg">0.000 °/s</div>
+        <div>Elapsed since ZERO</div><div id="elapsed">0.0 s</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="label">Return-to-zero statistics</div>
+    <div class="kv">
+      <div>Trials</div><div id="nTrials">0</div>
+      <div>Mean error</div><div id="meanErr">—</div>
+      <div>Std. deviation</div><div id="stdErr">—</div>
+      <div>RMS error</div><div id="rmsErr">—</div>
+      <div>Maximum |error|</div><div id="maxErr">—</div>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>Trial</th><th>Time</th><th>Return yaw</th></tr>
+      </thead>
+      <tbody id="trialsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="label">Important</div>
+    <div class="small" style="margin-top:8px">
+      Browser sensor APIs do not expose the same Apple Core Motion fused attitude available to a native iOS app. This page therefore performs its own short-duration gyro integration. The test is specifically intended to determine whether Safari + your iPhone 15 Pro is stable enough for the wheel-alignment concept.
+    </div>
+    <span class="pill">No magnetometer used</span>
+    <span class="pill">Timestamp-based integration</span>
+    <span class="pill">Best used in portrait orientation</span>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+  let enabled = false;
+  let lastTs = null;
+  let yawDeg = 0;
+  let zeroTime = null;
+
+  let gx = 0, gy = 0, gz = 0;
+  let gyroMag = 0;
+  let accelDev = 0;
+  let sampleHz = 0;
+  let stationary = false;
+
+  let trials = [];
+
+  // Bias estimates are updated only when stationary.
+  let biasA = 0, biasB = 0, biasG = 0;
+  let biasCount = 0;
+
+  const rad2deg = 180 / Math.PI;
+
+  function fmtSigned(v, n=3) {
+    return (v >= 0 ? "+" : "") + v.toFixed(n) + "°";
+  }
+
+  function updateStats() {
+    $("nTrials").textContent = trials.length;
+
+    if (!trials.length) {
+      $("meanErr").textContent = "—";
+      $("stdErr").textContent = "—";
+      $("rmsErr").textContent = "—";
+      $("maxErr").textContent = "—";
+      $("trialsBody").innerHTML = "";
+      return;
+    }
+
+    const vals = trials.map(t => t.yaw);
+    const mean = vals.reduce((a,b)=>a+b,0) / vals.length;
+    const variance = vals.length > 1
+      ? vals.reduce((s,v)=>s+(v-mean)*(v-mean),0) / (vals.length-1)
+      : 0;
+    const std = Math.sqrt(variance);
+    const rms = Math.sqrt(vals.reduce((s,v)=>s+v*v,0)/vals.length);
+    const maxAbs = Math.max(...vals.map(v=>Math.abs(v)));
+
+    $("meanErr").textContent = fmtSigned(mean);
+    $("stdErr").textContent = std.toFixed(3) + "°";
+    $("rmsErr").textContent = rms.toFixed(3) + "°";
+    $("maxErr").textContent = maxAbs.toFixed(3) + "°";
+
+    $("trialsBody").innerHTML = trials.map((t,i) =>
+      `<tr>
+        <td>${i+1}</td>
+        <td>${t.time.toFixed(1)} s</td>
+        <td>${fmtSigned(t.yaw)}</td>
+      </tr>`
+    ).join("");
+  }
+
+  function updateUI() {
+    $("yaw").textContent = fmtSigned(yawDeg);
+    $("gyroMag").textContent = gyroMag.toFixed(3) + " °/s";
+    $("accelDev").textContent = accelDev.toFixed(4) + " g";
+    $("sampleRate").textContent = sampleHz.toFixed(1) + " Hz";
+
+    $("ga").textContent = gx.toFixed(3) + " °/s";
+    $("gb").textContent = gy.toFixed(3) + " °/s";
+    $("gg").textContent = gz.toFixed(3) + " °/s";
+
+    if (zeroTime !== null) {
+      $("elapsed").textContent = ((performance.now() - zeroTime)/1000).toFixed(1) + " s";
+    } else {
+      $("elapsed").textContent = "0.0 s";
+    }
+
+    const st = $("stationary");
+    if (!enabled) {
+      st.textContent = "NOT ENABLED";
+      st.className = "med warn";
+    } else if (stationary) {
+      st.textContent = "STATIONARY";
+      st.className = "med good";
+    } else {
+      st.textContent = "MOVING";
+      st.className = "med warn";
+    }
+  }
+
+  function getApproxCamberFromAccelIncludingGravity(e) {
+    // accelerationIncludingGravity is in m/s^2 on iOS Safari.
+    // This estimate assumes the phone's screen plane is approximately
+    // parallel to the wheel face and the phone is in portrait orientation.
+    const a = e.accelerationIncludingGravity;
+    if (!a || [a.x,a.y,a.z].some(v => v == null)) return;
+
+    const x = a.x, y = a.y, z = a.z;
+    const norm = Math.sqrt(x*x+y*y+z*z) || 1;
+
+    // Angle of screen normal versus horizontal reference.
+    // Useful as a live tilt/camber proxy for the prototype.
+    const nz = z / norm;
+    const clamped = Math.max(-1, Math.min(1, nz));
+    const camber = Math.asin(clamped) * rad2deg;
+
+    $("camber").textContent = fmtSigned(camber);
+  }
+
+  function handleMotion(e) {
+    const rr = e.rotationRate;
+    if (!rr) return;
+
+    const now = performance.now();
+
+    if (lastTs !== null) {
+      const dt = Math.max(0, Math.min(0.2, (now - lastTs) / 1000));
+      sampleHz = dt > 0 ? 1 / dt : 0;
+
+      const a = rr.alpha ?? 0;
+      const b = rr.beta ?? 0;
+      const g = rr.gamma ?? 0;
+
+      gx = a; gy = b; gz = g;
+
+      const ca = a - biasA;
+      const cb = b - biasB;
+      const cg = g - biasG;
+
+      gyroMag = Math.sqrt(ca*ca + cb*cb + cg*cg);
+
+      // Portrait-phone approximation:
+      // alpha is rotation about the screen-normal / vertical-like axis
+      // for the way this first prototype is intended to be handled.
+      // We will replace this with quaternion/body-axis math in the next version.
+      yawDeg += ca * dt;
+    }
+
+    lastTs = now;
+
+    const ag = e.accelerationIncludingGravity;
+    if (ag && [ag.x,ag.y,ag.z].every(v => v != null)) {
+      const mag = Math.sqrt(ag.x*ag.x + ag.y*ag.y + ag.z*ag.z);
+      accelDev = Math.abs(mag - 9.80665) / 9.80665;
+    }
+
+    stationary = gyroMag < 0.20 && accelDev < 0.025;
+
+    // Slowly learn gyro bias only when phone is very still.
+    if (stationary) {
+      biasCount++;
+      const k = Math.min(0.02, 1 / Math.max(1, biasCount));
+      biasA = biasA*(1-k) + (rr.alpha ?? 0)*k;
+      biasB = biasB*(1-k) + (rr.beta ?? 0)*k;
+      biasG = biasG*(1-k) + (rr.gamma ?? 0)*k;
+    }
+
+    getApproxCamberFromAccelIncludingGravity(e);
+    updateUI();
+  }
+
+  async function enableSensors() {
+    try {
+      if (typeof DeviceMotionEvent !== "undefined" &&
+          typeof DeviceMotionEvent.requestPermission === "function") {
+        const response = await DeviceMotionEvent.requestPermission();
+        if (response !== "granted") {
+          alert("Motion sensor permission was not granted.");
+          return;
+        }
+      }
+
+      window.addEventListener("devicemotion", handleMotion, true);
+
+      enabled = true;
+      $("enableBtn").disabled = true;
+      $("zeroBtn").disabled = false;
+      $("saveBtn").disabled = false;
+      $("enableBtn").textContent = "Sensors Enabled";
+      updateUI();
+    } catch (err) {
+      alert("Could not enable motion sensors: " + err);
+    }
+  }
+
+  $("enableBtn").addEventListener("click", enableSensors);
+
+  $("zeroBtn").addEventListener("click", () => {
+    yawDeg = 0;
+    zeroTime = performance.now();
+    lastTs = null;
+    updateUI();
+  });
+
+  $("saveBtn").addEventListener("click", () => {
+    if (zeroTime === null) {
+      alert("Tap ZERO first.");
+      return;
+    }
+    if (!stationary) {
+      alert("Wait until the phone shows STATIONARY before saving the trial.");
+      return;
+    }
+
+    trials.push({
+      yaw: yawDeg,
+      time: (performance.now() - zeroTime)/1000
+    });
+    updateStats();
+  });
+
+  $("clearBtn").addEventListener("click", () => {
+    trials = [];
+    updateStats();
+  });
+
+  setInterval(updateUI, 100);
+  updateStats();
+  updateUI();
+})();
+</script>
+</body>
+</html>
