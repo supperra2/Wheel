@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0b1020">
+<title>Rear Toe + Symmetric Body Reference</title>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#090d18;--panel:#111827;--panel2:#192235;--line:#334155;
+  --text:#f8fafc;--muted:#94a3b8;--accent:#38bdf8;--good:#86efac;--warn:#fde68a;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  padding:max(14px,env(safe-area-inset-top)) 12px max(22px,env(safe-area-inset-bottom));
+}
+.wrap{max-width:760px;margin:0 auto}
+h1{font-size:1.5rem;margin:0 0 6px}
+.sub{margin:0 0 14px;color:var(--muted);line-height:1.4;font-size:.92rem}
+.toolbar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+button{
+  min-height:48px;border:1px solid var(--line);border-radius:11px;
+  background:var(--panel2);color:var(--text);font-weight:700;padding:8px 10px;font:inherit
+}
+button.primary{background:#075985;border-color:#0ea5e9}
+button.good{background:#14532d;border-color:#22c55e}
+button.warn{background:#713f12;border-color:#eab308}
+button.danger{background:#7f1d1d;border-color:#ef4444}
+button:disabled{opacity:.45}
+.status,.card,.section{
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px
+}
+.status{color:var(--muted);font-size:.9rem;margin-bottom:10px}
+.live{display:grid;grid-template-columns:1.4fr 1fr;gap:8px;margin-bottom:10px}
+.k{font-size:.78rem;color:var(--muted);margin-bottom:4px}
+.v{font-size:1.55rem;font-weight:800;font-variant-numeric:tabular-nums}
+.v.big{font-size:2.3rem;color:var(--accent)}
+.small,.note{font-size:.82rem;color:var(--muted);line-height:1.42}
+.step{margin-bottom:10px}
+.stephead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.stepname{font-size:1.05rem;font-weight:800}
+.badge{font-size:.72rem;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 7px}
+.metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:8px 0}
+.metric,.res{background:var(--panel2);border-radius:10px;padding:10px}
+.metric .n,.res .n{font-size:1.2rem;font-weight:800;font-variant-numeric:tabular-nums}
+.rowbtn{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.bodypair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sidebox{background:var(--panel2);border-radius:12px;padding:10px}
+.callout{
+  margin-top:10px;padding:10px;border-left:3px solid var(--warn);
+  background:#1c1917;border-radius:8px;color:#e7e5e4;font-size:.85rem;line-height:1.42
+}
+.settings{margin-top:10px}
+.settinggrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+label{display:block;color:var(--muted);font-size:.82rem;margin-bottom:4px}
+select{
+  width:100%;background:#0f172a;border:1px solid var(--line);color:var(--text);
+  min-height:42px;border-radius:9px;padding:7px 9px;font:inherit
+}
+@media(max-width:560px){
+  .live,.bodypair,.settinggrid,.rgrid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Rear Toe + Body Alignment</h1>
+  <p class="sub">
+    Body direction is estimated from <b>matching left/right symmetric body references</b>.
+    The app averages their line angles modulo 180°, then compares LR/RR wheel yaw to that axis.
+  </p>
+
+  <div class="toolbar">
+    <button id="startBtn" class="primary">Start Sensors</button>
+    <button id="clearAvgBtn">Clear Average</button>
+  </div>
+
+  <div id="status" class="status">Tap “Start Sensors”. Allow motion/orientation access if prompted.</div>
+
+  <div class="live">
+    <div class="card">
+      <div class="k">LIVE YAW · Z-axis α</div>
+      <div class="v big"><span id="alpha">—</span>°</div>
+      <div class="small">30-sample circular average</div>
+    </div>
+    <div class="card">
+      <div class="k">α STABILITY</div>
+      <div class="v"><span id="alphaSd">—</span>°</div>
+      <div class="small">circular SD</div>
+    </div>
+  </div>
+
+  <section class="section step">
+    <div class="stephead">
+      <div class="stepname">1. Capture symmetric body references</div>
+      <span class="badge">left + right</span>
+    </div>
+
+    <div class="bodypair">
+      <div class="sidebox">
+        <div class="k">LEFT BODY REFERENCE</div>
+        <div class="v" id="bodyLVal">—</div>
+        <button id="capBodyL" class="good" style="width:100%;margin-top:8px">Capture Left</button>
+      </div>
+      <div class="sidebox">
+        <div class="k">RIGHT BODY REFERENCE</div>
+        <div class="v" id="bodyRVal">—</div>
+        <button id="capBodyR" class="good" style="width:100%;margin-top:8px">Capture Right</button>
+      </div>
+    </div>
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="k">Calculated body-axis angle</div>
+        <div class="n" id="bodyAxis">—</div>
+      </div>
+      <div class="metric">
+        <div class="k">L/R reference mismatch</div>
+        <div class="n" id="bodyMismatch">—</div>
+      </div>
+    </div>
+
+    <div class="rowbtn">
+      <button id="clearBodyL" class="warn">Clear Left</button>
+      <button id="clearBodyR" class="warn">Clear Right</button>
+    </div>
+
+    <div class="callout">
+      Use matching features on the two sides of the vehicle and hold the phone/fixture in the same geometric relationship to each feature.
+      The app treats a line at 10° and the same line measured at 190° as identical.
+    </div>
+  </section>
+
+  <section class="section step">
+    <div class="stephead">
+      <div class="stepname">2. Left rear wheel</div>
+      <span class="badge">LR</span>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="k">Captured α</div><div class="n" id="lrAlpha">—</div></div>
+      <div class="metric"><div class="k">Toe vs body</div><div class="n" id="lrToe">—</div></div>
+    </div>
+    <div class="rowbtn">
+      <button id="capLR" class="good">Capture LR</button>
+      <button id="clearLR" class="warn">Clear LR</button>
+    </div>
+  </section>
+
+  <section class="section step">
+    <div class="stephead">
+      <div class="stepname">3. Right rear wheel</div>
+      <span class="badge">RR</span>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="k">Captured α</div><div class="n" id="rrAlpha">—</div></div>
+      <div class="metric"><div class="k">Toe vs body</div><div class="n" id="rrToe">—</div></div>
+    </div>
+    <div class="rowbtn">
+      <button id="capRR" class="good">Capture RR</button>
+      <button id="clearRR" class="warn">Clear RR</button>
+    </div>
+  </section>
+
+  <section class="section step">
+    <div class="stephead">
+      <div class="stepname">Results</div>
+      <span class="badge">rear axle</span>
+    </div>
+    <div class="rgrid">
+      <div class="res"><div class="k">Rear total toe</div><div class="n" id="rearTotal">—</div></div>
+      <div class="res"><div class="k">Rear thrust angle vs body</div><div class="n" id="thrust">—</div></div>
+    </div>
+    <div class="note" style="margin-top:10px">
+      Positive toe is treated as toe-in. Thrust angle is the average rear-wheel heading relative to the calculated body axis.
+    </div>
+  </section>
+
+  <section class="section settings">
+    <div class="stephead">
+      <div class="stepname">Toe sign settings</div>
+      <span class="badge">calibration</span>
+    </div>
+    <div class="settinggrid">
+      <div>
+        <label for="signLR">LR toe sign</label>
+        <select id="signLR"><option value="1">+1</option><option value="-1">−1</option></select>
+      </div>
+      <div>
+        <label for="signRR">RR toe sign</label>
+        <select id="signRR"><option value="-1">−1</option><option value="1">+1</option></select>
+      </div>
+    </div>
+    <div class="note" style="margin-top:8px">
+      If a known toe-in movement shows as negative, flip that wheel's sign.
+    </div>
+  </section>
+
+  <div class="toolbar" style="margin-top:10px">
+    <button id="resetBtn" class="danger">Reset Measurements</button>
+    <button id="zeroBtn" disabled>Zero Live Yaw</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const state={
+    running:false, alphaBuf:[], alpha:null, zero:null,
+    bodyL:null, bodyR:null, lr:null, rr:null
+  };
+  const $=id=>document.getElementById(id);
+  const AVG_N=30;
+
+  function wrap360(d){return ((d%360)+360)%360}
+  function diff(a,b){return ((a-b+540)%360)-180}
+
+  function circMean(arr){
+    const x=arr.filter(Number.isFinite);
+    if(!x.length)return null;
+    let s=0,c=0;
+    for(const d of x){
+      const r=d*Math.PI/180;
+      s+=Math.sin(r); c+=Math.cos(r);
+    }
+    return wrap360(Math.atan2(s/x.length,c/x.length)*180/Math.PI);
+  }
+
+  // Mean of AXIAL directions: 0° and 180° represent the same physical line.
+  function axialMean(a,b){
+    const x=[a,b].filter(Number.isFinite);
+    if(!x.length)return null;
+    let s=0,c=0;
+    for(const d of x){
+      const r=2*d*Math.PI/180;
+      s+=Math.sin(r); c+=Math.cos(r);
+    }
+    let deg=0.5*Math.atan2(s/x.length,c/x.length)*180/Math.PI;
+    deg=((deg%180)+180)%180;
+    return deg;
+  }
+
+  // Smallest difference between two physical line angles, modulo 180°.
+  function axialDiff(a,b){
+    let d=((a-b+270)%180)-90;
+    return d;
+  }
+
+  function circSd(arr){
+    const x=arr.filter(Number.isFinite);
+    if(x.length<2)return null;
+    let s=0,c=0;
+    for(const d of x){
+      const r=d*Math.PI/180;
+      s+=Math.sin(r); c+=Math.cos(r);
+    }
+    const R=Math.sqrt(s*s+c*c)/x.length;
+    if(R<=0)return 180;
+    return Math.sqrt(-2*Math.log(Math.min(1,R)))*180/Math.PI;
+  }
+
+  function push(v){
+    if(!Number.isFinite(v))return;
+    state.alphaBuf.push(v);
+    while(state.alphaBuf.length>AVG_N)state.alphaBuf.shift();
+  }
+
+  function bodyAxis(){return axialMean(state.bodyL,state.bodyR)}
+
+  function signedWheelVsBody(wheelAlpha){
+    const ba=bodyAxis();
+    if(!Number.isFinite(ba)||!Number.isFinite(wheelAlpha))return null;
+
+    // Body axis is axial (0..180). Choose whichever direction of the axis is
+    // closest to the wheel heading, then calculate signed angular difference.
+    const candidates=[ba,ba+180];
+    const d0=diff(wheelAlpha,candidates[0]);
+    const d1=diff(wheelAlpha,candidates[1]);
+    return Math.abs(d0)<=Math.abs(d1)?d0:d1;
+  }
+
+  function lrToe(){
+    const h=signedWheelVsBody(state.lr);
+    return Number.isFinite(h)?h*Number($("signLR").value):null;
+  }
+  function rrToe(){
+    const h=signedWheelVsBody(state.rr);
+    return Number.isFinite(h)?h*Number($("signRR").value):null;
+  }
+
+  function fmt(v,d=2){return Number.isFinite(v)?v.toFixed(d):"—"}
+  function ang(v){return Number.isFinite(v)?(v>=0?"+":"")+v.toFixed(2)+"°":"—"}
+
+  function save(){
+    localStorage.setItem("rearToeSymBodyV3",JSON.stringify({
+      bodyL:state.bodyL,bodyR:state.bodyR,lr:state.lr,rr:state.rr,
+      signLR:$("signLR").value,signRR:$("signRR").value
+    }));
+  }
+
+  function load(){
+    try{
+      const d=JSON.parse(localStorage.getItem("rearToeSymBodyV3")||"null");
+      if(!d)return;
+      state.bodyL=d.bodyL??null;
+      state.bodyR=d.bodyR??null;
+      state.lr=d.lr??null;
+      state.rr=d.rr??null;
+      if(d.signLR)$("signLR").value=d.signLR;
+      if(d.signRR)$("signRR").value=d.signRR;
+    }catch(e){}
+  }
+
+  function render(){
+    $("alpha").textContent=fmt(state.alpha);
+    $("alphaSd").textContent=fmt(circSd(state.alphaBuf),3);
+
+    $("bodyLVal").textContent=Number.isFinite(state.bodyL)?state.bodyL.toFixed(2)+"°":"—";
+    $("bodyRVal").textContent=Number.isFinite(state.bodyR)?state.bodyR.toFixed(2)+"°":"—";
+
+    const ba=bodyAxis();
+    $("bodyAxis").textContent=Number.isFinite(ba)?ba.toFixed(2)+"°":"—";
+    $("bodyMismatch").textContent=
+      (Number.isFinite(state.bodyL)&&Number.isFinite(state.bodyR))
+      ? Math.abs(axialDiff(state.bodyR,state.bodyL)).toFixed(2)+"°"
+      : "—";
+
+    $("lrAlpha").textContent=Number.isFinite(state.lr)?state.lr.toFixed(2)+"°":"—";
+    $("rrAlpha").textContent=Number.isFinite(state.rr)?state.rr.toFixed(2)+"°":"—";
+
+    const lt=lrToe(),rt=rrToe();
+    $("lrToe").textContent=ang(lt);
+    $("rrToe").textContent=ang(rt);
+    $("rearTotal").textContent=(Number.isFinite(lt)&&Number.isFinite(rt))?ang(lt+rt):"—";
+
+    const lh=signedWheelVsBody(state.lr);
+    const rh=signedWheelVsBody(state.rr);
+    $("thrust").textContent=(Number.isFinite(lh)&&Number.isFinite(rh))?ang((lh+rh)/2):"—";
+
+    $("zeroBtn").disabled=!Number.isFinite(state.alpha);
+  }
+
+  function onOrientation(e){
+    push(Number(e.alpha));
+    state.alpha=circMean(state.alphaBuf);
+    render();
+  }
+
+  async function start(){
+    try{
+      if(typeof DeviceOrientationEvent==="undefined"){
+        $("status").textContent="DeviceOrientationEvent is not supported in this browser.";
+        return;
+      }
+      if(typeof DeviceOrientationEvent.requestPermission==="function"){
+        const p=await DeviceOrientationEvent.requestPermission();
+        if(p!=="granted"){
+          $("status").textContent="Orientation permission was not granted.";
+          return;
+        }
+      }
+      if(!state.running){
+        addEventListener("deviceorientation",onOrientation,true);
+        state.running=true;
+      }
+      $("startBtn").disabled=true;
+      $("status").textContent="Sensor running. Hold still until α stability settles, then capture.";
+    }catch(err){
+      $("status").textContent="Could not start sensors: "+(err?.message||String(err));
+    }
+  }
+
+  $("startBtn").onclick=start;
+  $("clearAvgBtn").onclick=()=>{
+    state.alphaBuf=[];state.alpha=null;render();
+    $("status").textContent="Averaging buffer cleared.";
+  };
+
+  $("capBodyL").onclick=()=>{
+    if(Number.isFinite(state.alpha)){
+      state.bodyL=state.alpha;save();render();
+      $("status").textContent="Left body reference captured.";
+    }
+  };
+  $("capBodyR").onclick=()=>{
+    if(Number.isFinite(state.alpha)){
+      state.bodyR=state.alpha;save();render();
+      $("status").textContent="Right body reference captured.";
+    }
+  };
+  $("clearBodyL").onclick=()=>{state.bodyL=null;save();render()};
+  $("clearBodyR").onclick=()=>{state.bodyR=null;save();render()};
+
+  $("capLR").onclick=()=>{
+    if(Number.isFinite(state.alpha)){
+      state.lr=state.alpha;save();render();
+      $("status").textContent="Left rear captured.";
+    }
+  };
+  $("clearLR").onclick=()=>{state.lr=null;save();render()};
+
+  $("capRR").onclick=()=>{
+    if(Number.isFinite(state.alpha)){
+      state.rr=state.alpha;save();render();
+      $("status").textContent="Right rear captured.";
+    }
+  };
+  $("clearRR").onclick=()=>{state.rr=null;save();render()};
+
+  $("signLR").onchange=()=>{save();render()};
+  $("signRR").onchange=()=>{save();render()};
+
+  $("resetBtn").onclick=()=>{
+    state.bodyL=state.bodyR=state.lr=state.rr=null;
+    localStorage.removeItem("rearToeSymBodyV3");
+    render();
+    $("status").textContent="Measurements reset.";
+  };
+
+  $("zeroBtn").onclick=()=>{
+    if(Number.isFinite(state.alpha)){
+      state.zero=state.alpha;
+      $("status").textContent="Live yaw zero set.";
+    }
+  };
+
+  load();
+  render();
+})();
+</script>
+</body>
+</html>
